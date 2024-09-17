@@ -2,10 +2,11 @@ import json
 import requests
 import telebot
 from telebot import types
+import sqlite3
 
 GEOCODE_KEY = "3c696182-3c53-41e3-b481-8101f0451a48"
 OGRANIZATION_KEY = "379ae701-2423-4bdb-9536-d21e1f86f8c4"
-TOKEN = '7322461294:AAEyvWj04RK7e85VT8oRy1bEjDUDKYAMoBI'
+TOKEN = '7322461294:AAEJDhd7-byrL6VUDaME6kRE2ATv84m_qMg'
 bot = telebot.TeleBot(TOKEN)
 
 
@@ -81,6 +82,15 @@ def get_location(message):
 
 
 def disabled(message, *ll):
+    db_con = sqlite3.connect('statistic.db')
+    cur = db_con.cursor()
+    res = cur.execute(f'SELECT rate FROM main WHERE request = "{message.text.capitalize()}"').fetchall()
+    if not res:
+        cur.execute(f'INSERT INTO main (rate, request) VALUES    (?, ?)', (1, message.text.capitalize()))
+    else:
+        cur.execute(f'UPDATE main SET rate = {res[0][0] + 1} WHERE request = "{message.text.capitalize()}"')
+    db_con.commit()
+
     data_for_find = message
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(types.KeyboardButton('Да'))
