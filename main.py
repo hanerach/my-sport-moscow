@@ -6,7 +6,7 @@ import sqlite3
 
 GEOCODE_KEY = "3c696182-3c53-41e3-b481-8101f0451a48"
 OGRANIZATION_KEY = "379ae701-2423-4bdb-9536-d21e1f86f8c4"
-TOKEN = '7322461294:AAEJDhd7-byrL6VUDaME6kRE2ATv84m_qMg'
+TOKEN = '7672536595:AAH8JYchr5Nd4MLI1ZZ1Ojy4IJGBHaF8XYE'
 bot = telebot.TeleBot(TOKEN)
 
 
@@ -36,7 +36,8 @@ def organization_find(toponym_to_find, lang, coords):
         "lang": lang,
         "ll": ll,
         "results": 50,
-        "type": 'biz'
+        "type": 'biz',
+        "spn": '0.1,0.1'
     }
 
     return requests.get(organization_api_server, params=finder_params)
@@ -104,7 +105,7 @@ def objects(message, *ll, data_for_find):
     categories = ['fitness', 'sportcenter', 'stadium', 'playground']
     if not (message.text.lower() == 'да' or message.text.lower() == 'нет'):
         bot.send_message(message.from_user.id, 'Некорректный ответ, попробуйте ещё раз')
-        bot.register_next_step_handler(message, objects, *ll)
+        bot.register_next_step_handler(message, objects, *ll, data_for_find=data_for_find)
     else:
         lang = data_for_find.from_user.language_code
         response = organization_find(data_for_find.text, lang, ll)
@@ -118,45 +119,46 @@ def objects(message, *ll, data_for_find):
             disabled_inf = []
             base = json_response['features'][i]
             for k in base['properties']['CompanyMetaData']['Categories']:
-                try:
-                    if k["class"] in categories:
-                        try:
-                            disabled_base = base['properties']['CompanyMetaData']['Features']
-                            for j in disabled_base:
-                                if (type(j['value']) == list and 'доступно' in j['value']['name']) or j['value'] == True:
-                                    disabled_inf.append(j['name'])
-                            list(set(disabled_inf))
-                        except Exception:
-                            if message.text.lower() == 'да':
-                                continue
-                            else:
-                                disabled_inf = ['Не найдено']
-                        try:
-                            url = base['properties']['CompanyMetaData']['url']
-                        except Exception:
-                            url = 'Не найдено'
-                        try:
-                            phone = base['properties']['CompanyMetaData']['Phones'][0]['formatted']
-                        except Exception:
-                            phone = 'Не найдено'
-                        try:
-                            hours = base['properties']['CompanyMetaData']['Hours']['text']
-                        except Exception:
-                            hours = "Не найдено"
+                if 'Зеленоград' in base['properties']['CompanyMetaData']['address']:
+                    try:
+                        if k["class"] in categories:
+                            try:
+                                disabled_base = base['properties']['CompanyMetaData']['Features']
+                                for j in disabled_base:
+                                    if (type(j['value']) == list and 'доступно' in j['value']['name']) or j['value'] == True:
+                                        disabled_inf.append(j['name'])
+                                list(set(disabled_inf))
+                            except Exception:
+                                if message.text.lower() == 'да':
+                                    continue
+                                else:
+                                    disabled_inf = ['Не найдено']
+                            try:
+                                url = base['properties']['CompanyMetaData']['url']
+                            except Exception:
+                                url = 'Не найдено'
+                            try:
+                                phone = base['properties']['CompanyMetaData']['Phones'][0]['formatted']
+                            except Exception:
+                                phone = 'Не найдено'
+                            try:
+                                hours = base['properties']['CompanyMetaData']['Hours']['text']
+                            except Exception:
+                                hours = "Не найдено"
 
-                        di = {
-                            'coords': base['geometry']['coordinates'],
-                            'name': base['properties']['name'],
-                            'address': base['properties']['CompanyMetaData']['address'],
-                            'url': url,
-                            'phone': phone,
-                            'hours': hours,
-                            'disabled_inf': ', '.join(disabled_inf)
-                        }
-                        list_of_objects.append(di)
-                        break
-                except KeyError:
-                    pass
+                            di = {
+                                'coords': base['geometry']['coordinates'],
+                                'name': base['properties']['name'],
+                                'address': base['properties']['CompanyMetaData']['address'],
+                                'url': url,
+                                'phone': phone,
+                                'hours': hours,
+                                'disabled_inf': ', '.join(disabled_inf)
+                            }
+                            list_of_objects.append(di)
+                            break
+                    except KeyError:
+                      pass
         if len(list_of_objects) != 0:
             with open("data_file.json", 'w', encoding='utf8') as w:
                 json.dump(list_of_objects, w, ensure_ascii=False, indent=4)
