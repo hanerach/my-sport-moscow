@@ -3,6 +3,7 @@ import requests
 import telebot
 from telebot import types
 import sqlite3
+from gpt import ask_gpt
 
 GEOCODE_KEY = "3c696182-3c53-41e3-b481-8101f0451a48"
 OGRANIZATION_KEY = "379ae701-2423-4bdb-9536-d21e1f86f8c4"
@@ -47,10 +48,27 @@ def organization_find(toponym_to_find, lang, coords):
 def handle_start(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     item1 = types.KeyboardButton('Отправить геопозицию' + chr(128205), request_location=True)
-    markup.add(item1)
-    bot.send_message(message.from_user.id, 'Здравствуйте! Для поиска ближайших спортивных объектов, введите адрес или '
-                                           'отправьте геопозицию.',
+    item2 = types.KeyboardButton('Ввести адрес')
+    markup.add(item1, item2)
+    bot.send_message(message.from_user.id, 'Здравствуйте! Для поиска ближайших спортивных объектов'
+                                           ' отправьте геопозицию или нажмите кнопку для ввода адреса. Если хотите'
+                                           ' обратиться к спортивному ассистенту, напишите свой вопрос.',
                      reply_markup=markup)
+
+
+@bot.message_handler()
+def messages(message):
+    if message.text == 'Ввести адрес':
+        bot.send_message(message.from_user.id, 'Поиск по какому адресу вас интересует?')
+        bot.register_next_step_handler(message, get_location)
+    else:
+        if len(message.text) < 10:
+            bot.send_message(message.from_user.id, "Сообщение не может быть меньше 10 символов.")
+        else:
+            msg = bot.send_message(message.from_user.id, "<i>Ожидайте...</i>", parse_mode="HTML")
+            collection = [{'role': 'user', 'content': message.text}]
+            ans = ask_gpt(collection)
+            bot.edit_message_text(ans, message.from_user.id, msg.id)
 
 
 @bot.message_handler(content_types=['location', 'text'])
@@ -165,11 +183,11 @@ def objects(message, *ll, data_for_find):
             output(message, list_of_objects)
         else:
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True).add(
-                types.KeyboardButton('Отправить геопозицию' + chr(128205), request_location=True))
+                types.KeyboardButton('Отправить геопозицию' + chr(128205), request_location=True),
+            types.KeyboardButton('Ввести адрес'))
             bot.send_message(message.from_user.id,
-                             'Спортивные объекты не найдены, попробуйте начать поиск заново, для этого введите адрес или отправьте геопозицию',
+                             'Спортивные объекты не найдены.\nВы можете начать поиск заново или задать вопрос ассистенту',
                              reply_markup=markup)
-            bot.register_next_step_handler(message, get_location)
 
 
 def output(message, list_of_objects):
@@ -192,8 +210,10 @@ def output(message, list_of_objects):
                      reply_markup=keyboard,
                      parse_mode='HTML')
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add(types.KeyboardButton('Отправить геопозицию' + chr(128205), request_location=True))
-    bot.send_message(message.from_user.id, 'Если хотите начать поиск заново, просто укажите новый адрес',
+    markup.add(types.KeyboardButton('Отправить геопозицию' + chr(128205), request_location=True),
+               types.KeyboardButton('Ввести адрес'))
+    bot.send_message(message.from_user.id, 'Если хотите начать поиск заново, отправьте геопозицию или нажмите '
+                                           'кнопку ввода адреса.\nЕсли хотите задать вопрос, отправьте его.',
                      reply_markup=markup)
 
 
